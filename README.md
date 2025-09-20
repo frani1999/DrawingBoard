@@ -1,4 +1,4 @@
-# Linkfy Drawing Board
+# Drawing Board
 
 ## 👁️ Overview
 
@@ -9,8 +9,10 @@ This project implements a simple drawing board based on [*Linkfy*](https://www.y
 
 ## 💻 keyboard shortcuts
 
-- *Ctrl+z* → Undo lines.
-- *Ctrl+t* → Switch between black and white theme. 
+- *Ctrl+z* → Undo lines
+- *Ctrl+t* → Switch between black and white theme
+- *Ctrl+s* → Save current drawing as a png image
+- *Ctrl+h* → Show keyboard shortcuts help
 
 ## 📄 Disclaimer
 
