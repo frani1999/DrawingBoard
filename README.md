@@ -7,12 +7,19 @@ This project implements a simple drawing board based on [*Linkfy*](https://www.y
 
 <img src="media/gif1.gif" alt="Demo" width="400"/>
 
-## 💻 keyboard shortcuts
+## 💻 Menu Bar functions
+<img src="media/menubar.png" alt="Demo" width="675"/>
 
-- *Ctrl+z* → Undo lines
-- *Ctrl+t* → Switch between black and white theme
-- *Ctrl+s* → Save current drawing as a png image
-- *Ctrl+h* → Show keyboard shortcuts help
+| Layer | Function     | keyboard shortcut | Info                                                                          |
+|-------|--------------|-------------------|-------------------------------------------------------------------------------|
+| File  | Save Drawing | Ctrl+S            | Save current drawing. <br/>User can select path, name and format (png or jpg) |
+| File  | Import Image | Ctrl+I            | TBD...                                                                        |
+| File  | Exit         | -                 | Exit the application                                                          |
+| View  | Switch Theme | Ctrl+T            | Switch between black and white theme                                          |
+| Help  | Show Help    | Ctrl+H            | Show keyboard shortcuts help                                                  |
+
+### Other keyboard shortcut
+- *Ctrl+Z* → Undo lines
 
 ## 📄 Disclaimer
 
