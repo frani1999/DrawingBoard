@@ -13,7 +13,7 @@ This project implements a simple drawing board based on [*Linkfy*](https://www.y
 | Layer | Function     | keyboard shortcut | Info                                                                          |
 |-------|--------------|-------------------|-------------------------------------------------------------------------------|
 | File  | Save Drawing | Ctrl+S            | Save current drawing. <br/>User can select path, name and format (png or jpg) |
-| File  | Import Image | Ctrl+I            | TBD...                                                                        |
+| File  | Import Image | Ctrl+I            | Import local image to draw                                                    |
 | File  | Exit         | -                 | Exit the application                                                          |
 | View  | Switch Theme | Ctrl+T            | Switch between black and white theme                                          |
 | Help  | Show Help    | Ctrl+H            | Show keyboard shortcuts help                                                  |
