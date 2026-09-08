@@ -128,10 +128,13 @@ class DrawingBoardApp:
 
             # Convert PS -> PNG, JPG
             img = Image.open(ps_path)
-            img.save(file_path)
-            img.close()
+            try:
+                img.save(file_path)
+            finally:
+                img.close()
         except Exception as e:
             showinfo("Drawing Board error", f"Cannot save image {os.path.basename(file_path)}: {e}")
+            return
         finally:
             # Delete ps file
             try:

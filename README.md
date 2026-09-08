@@ -7,6 +7,12 @@ This project implements a simple drawing board based on [*Linkfy*](https://www.y
 
 <img src="media/gif1.gif" alt="Demo" width="400"/>
 
+## Setup and run
+
+See [SETUP.md](doc/SETUP.md) for prerequisites and step-by-step instructions for
+Windows, macOS, and Linux. With Python and GNU Make installed, run `make setup`
+once, then `make run` to open the application.
+
 ## 💻 Menu Bar functions
 <img src="media/menubar.png" alt="Demo" width="675"/>
 
