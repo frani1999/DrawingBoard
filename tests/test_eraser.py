@@ -80,6 +80,27 @@ class RubberTests(unittest.TestCase):
     def visible_lines(self):
         return [r for r in self.records.values() if r['type'] == 'line' and r['state'] == 'normal']
 
+    @patch('main.askokcancel', return_value=True)
+    def test_undo_all_removes_nested_rubber_cuts_and_dots_preserving_image(self, confirm):
+        self.records[500] = dict(type='image', state='normal', tags=())
+        self.app.items.append(500)
+        self.line()
+        self.records[501] = dict(type='oval', state='normal', tags=('pencil_dot',),
+                                 coords=(45, 45, 55, 55), fill='red')
+        self.app.items.append(501)
+        self.app.select_rubber()
+        self.app.start_drawing(SimpleNamespace(x=50, y=50))
+        self.app.stop_drawing()
+        self.app.start_drawing(SimpleNamespace(x=25, y=50))
+        self.app.undo_all()
+        self.assertEqual(self.records, {500: dict(type='image', state='normal', tags=())})
+        self.assertEqual(self.app.items, [500])
+        self.app.select_pencil()
+        self.line()
+        self.assertEqual(len(self.visible_lines()), 1)
+        self.app.undo()
+        self.assertEqual(list(self.records), [500])
+
     def test_shortcuts_and_menu_entries(self):
         import main
         bindings = dict(c.args for c in self.app.window.bind.call_args_list)

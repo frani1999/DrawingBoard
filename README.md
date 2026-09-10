@@ -28,6 +28,7 @@ once, then `make run` to open the application.
 |-------|--------------|-------------------|-------------------------------------------------------------------------------|
 | File  | Save Drawing | **Ctrl+S**        | Save current drawing. <br/>User can select path, name and format (png or jpg) |
 | File  | Import Image | **Ctrl+I**        | Import local image to draw                                                    |
+| File  | Undo All     | **Ctrl+Shift+Z**  | Clear pencil marks after confirmation; keep imported images |
 | File  | Exit         | -                 | Exit the application                                                          |
 | Select | Color       | **Ctrl+Shift+C**  | Choose the pencil color for new strokes |
 | Select | Pencil      | **Ctrl+Shift+P**  | Switch back to drawing |
@@ -39,6 +40,16 @@ once, then `make run` to open the application.
 
 - **Ctrl+Z** → Undo a drawing segment, dot, image import, or rubber stroke
 - **Ctrl + + / -** → Increase or decrease the active tool size by 1 pixel
+
+### Undo All
+
+Choose **File → Undo All** (**Ctrl+Shift+Z**) to remove all pencil lines and dots
+while keeping imported images. A warning asks **“Are You sure you want to undo all design?”**
+Choose **OK** to accept or **Cancel** to keep the design; Cancel is selected by
+default. This clears drawing and rubber history, so **Ctrl+Z cannot restore the
+cleared marks**. Image imports remain in undo history and can still be undone
+individually with **Ctrl+Z**.
+The selected tool, size, color, and canvas theme stay unchanged.
 
 ### Drawing lines and dots
 

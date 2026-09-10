@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import colorchooser, filedialog, ttk
 from tkinter import font as tkfont
-from tkinter.messagebox import showinfo
+from tkinter.messagebox import askokcancel, showinfo
 from PIL import Image, ImageTk
 from datetime import datetime
 import os
@@ -67,6 +67,7 @@ class DrawingBoardApp:
         file_menu = tk.Menu(menubar, tearoff=False)
         file_menu.add_command(label='Save Drawing', accelerator='Ctrl+S', command=self.save_draw)
         file_menu.add_command(label='Import Image', accelerator='Ctrl+I', command=self.import_image)
+        file_menu.add_command(label='Undo All', accelerator='Ctrl+Shift+Z', command=self.undo_all)
         file_menu.add_separator()
         file_menu.add_command(label='Exit', command=self.window.destroy)
 
@@ -97,6 +98,7 @@ class DrawingBoardApp:
 
         # Keyboard shortcuts (bindings on window)
         self.window.bind('<Control-z>', self.undo)
+        self.window.bind('<Control-Shift-Z>', self.undo_all)
         self.window.bind('<Control-t>', self.switch_theme)
         self.window.bind('<Control-s>', self.save_draw)
         self.window.bind('<Control-h>', self.show_help)
@@ -224,6 +226,22 @@ class DrawingBoardApp:
                 self._update_cursor()
             else:
                 self.canvas.delete(last_id)
+
+    def undo_all(self, event=None):
+        self.stop_drawing()
+        if askokcancel('Undo All', 'Are You sure you want to undo all design?',
+                       parent=self.window, icon='warning', default='cancel'):
+            # Keep imports in their original undo order and retain PhotoImages.
+            images = []
+            while self.items:
+                item = self.items[-1]
+                if not isinstance(item, dict) and self.canvas.type(item) == 'image':
+                    images.append(self.items.pop())
+                else:
+                    self.undo()
+            self.items.extend(reversed(images))
+        self.canvas.focus_set()
+        return 'break'
 
     def _erase_to(self, x, y):
         radius = self.pencil_size / 2
@@ -363,6 +381,7 @@ class DrawingBoardApp:
             row=1, column=0, columnspan=2, sticky='w', padx=(16, 0), pady=(0, 8))
         shortcuts = (
             ('Ctrl+Z', 'Undo drawing, import, or rubber stroke'),
+            ('Ctrl+Shift+Z', 'Undo All: clear pencil marks after confirmation'),
             ('Ctrl+T', 'Switch between black and white theme'),
             ('Ctrl+S', 'Save the current drawing as PNG or JPEG'),
             ('Ctrl+H', 'Show keyboard shortcuts help'),
@@ -389,6 +408,9 @@ class DrawingBoardApp:
             'Both tools share the size; switching tools keeps it unchanged.\n'
             'The cursor outline shows the current tool size.\n'
             'Rubber erases pencil marks and preserves imported images.\n'
+            'File → Undo All clears pencil marks and keeps imported images.\n'
+            'Confirm with OK or choose Cancel to keep the design.\n'
+            'Undo All cannot be reversed with Ctrl+Z.\n'
             'Ctrl+= and Ctrl + numeric keypad + / - also work.'
         )
         ttk.Label(body, text=details, justify='left').grid(
