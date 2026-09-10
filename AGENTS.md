@@ -35,6 +35,8 @@ Cover click-only dots, stationary motion, normal drags, shared size limits, swit
 
 ## Drawing Tool and UI Invariants
 
+- `File → Undo All` (`Ctrl+Shift+Z`) always asks “Are You sure you want to undo all design?” with OK/Cancel and Cancel as the default. Confirmation clears pencil marks and rubber history while preserving imported images, their image references and undo order, cursor decorations, and tool/theme settings. Individual image imports remain undoable with Ctrl+Z. Cancel preserves the design. Stop active strokes without creating a dot before opening the dialog. Cover these behaviors, repeated image-only calls, and the menu, shortcut, and Help text in tests.
+
 - The menus are `File`, `Select`, `View`, and `Help`. `Select` offers Color (`Ctrl+Shift+C`), Pencil (`Ctrl+Shift+P`), and Rubber (`Ctrl+Shift+R`). Keep bindings, menu accelerators, Help, and README consistent.
 - `pencil_size` is the shared size for both tools, initially `MIN_PENCIL_SIZE` (1 pixel), bounded by `MAX_PENCIL_SIZE` (50 pixels). `Ctrl++` / `Ctrl+-` adjust it by 1; `Ctrl+=` and numeric keypad add/subtract also work. Switching tools preserves size and pencil color.
 - Default pencil marks use the `theme_color` canvas tag and follow the canvas theme: black on white, white on black. Explicit color selections, including black or white, remain fixed across theme changes. A canceled picker must preserve the selection and default/custom status.

@@ -95,11 +95,19 @@ If GNU Make is not installed, run the equivalent command directly:
 
 The suite in `tests/test_main.py` covers drawing, undo, theme switching, image
 import and resizing, canceled dialogs, and save success/failure cleanup.
+Undo All tests cover confirmation and cancellation, empty boards, active
+strokes, rubber history, image preservation, and the menu, shortcut, and Help text.
 It uses Python's built-in `unittest` and `unittest.mock`; no additional test
 dependencies are required. Tk widgets, dialogs, and file access are mocked,
 so tests do not open windows, write drawings, or require Ghostscript. Image
 resizing uses real Pillow images. These unit tests do not verify the live GUI
 or actual PostScript conversion.
+
+For a manual check, draw marks and import an image, then open **File → Undo All**
+or press **Ctrl+Shift+Z**. Cancel should preserve the design; OK should clear
+pencil marks and rubber history while preserving imported images. Repeat with
+only images on the board and verify they remain. Check that drawing still works afterward and that
+**Help → Show Help** documents the shortcut and confirmation behavior.
 
 To run one test on Windows:
 

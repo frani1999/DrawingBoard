@@ -111,6 +111,92 @@ class DrawingBoardTests(unittest.TestCase):
         self.canvas.delete.assert_not_called()
         self.assertEqual(self.app.items, [])
 
+    def test_undo_all_menu_shortcut_and_help(self):
+        import main
+        main.tk.Menu.return_value.add_command.assert_any_call(
+            label='Undo All', accelerator='Ctrl+Shift+Z', command=self.app.undo_all)
+        self.app.window.bind.assert_any_call('<Control-Shift-Z>', self.app.undo_all)
+        self.app.show_help()
+        texts = [c.kwargs.get('text', '') for c in main.ttk.Label.call_args_list]
+        self.assertIn('Ctrl+Shift+Z', texts)
+        self.assertTrue(any('Undo All cannot be reversed' in text for text in texts))
+
+    @patch('main.askokcancel', return_value=False)
+    def test_undo_all_cancel_preserves_design_and_image_references(self, confirm):
+        history = [11, {'erased': [(11, [12, 13])]}, 14]
+        self.app.items = history.copy()
+        image = object()
+        self.app._image_refs = [image]
+        self.assertEqual(self.app.undo_all(), 'break')
+        confirm.assert_called_once_with(
+            'Undo All', 'Are You sure you want to undo all design?',
+            parent=self.app.window, icon='warning', default='cancel')
+        self.assertEqual(self.app.items, history)
+        self.assertEqual(self.app._image_refs, [image])
+        self.canvas.delete.assert_not_called()
+        self.canvas.itemconfigure.assert_not_called()
+        self.canvas.focus_set.assert_called_once()
+
+    @patch('main.askokcancel', return_value=True)
+    def test_undo_all_clears_marks_preserving_images_and_settings(self, confirm):
+        self.app.items = [11, {'erased': [(11, [12, 13])]}, 14]
+        image = object()
+        self.app._image_refs = [image]
+        self.canvas.type.side_effect = lambda item: 'image' if item == 14 else 'line'
+        self.app.active_tool = 'rubber'
+        self.app.pencil_size = 10
+        self.app.line_color = '#123456'
+        self.app._custom_color = True
+        self.app.background_color = BLACK
+        self.app.is_drawing = True
+        self.app._erase_action = self.app.items[1]
+        self.assertEqual(self.app.undo_all(SimpleNamespace()), 'break')
+        self.assertEqual(self.canvas.delete.call_args_list,
+                         [call(12), call(13), call(11)])
+        self.assertEqual(self.app.items, [14])
+        self.assertEqual(self.app._image_refs, [image])
+        self.assertFalse(self.app.is_drawing)
+        self.assertIsNone(self.app._erase_action)
+        self.assertEqual((self.app.active_tool, self.app.pencil_size,
+                          self.app.line_color, self.app.background_color),
+                         ('rubber', 10, '#123456', BLACK))
+        self.assertTrue(self.app._custom_color)
+        self.canvas.delete.reset_mock()
+        self.app.undo()
+        self.canvas.delete.assert_called_once_with(14)
+
+    @patch('main.askokcancel', return_value=True)
+    def test_undo_all_preserves_multiple_imports_and_repeated_image_only_calls(self, confirm):
+        self.app.items = [10, 11, 20, 21]
+        images = [object(), object()]
+        self.app._image_refs = images.copy()
+        self.canvas.type.side_effect = lambda item: 'image' if item in (10, 20) else 'line'
+        self.app.undo_all()
+        self.assertEqual(self.app.items, [10, 20])
+        self.assertEqual(self.app._image_refs, images)
+        self.assertEqual(self.canvas.delete.call_args_list, [call(21), call(11)])
+        self.canvas.delete.reset_mock()
+        self.app.undo_all()
+        self.canvas.delete.assert_not_called()
+        self.assertEqual(self.app.items, [10, 20])
+        self.assertEqual(self.app._image_refs, images)
+        self.app.undo()
+        self.app.undo()
+        self.assertEqual(self.canvas.delete.call_args_list, [call(20), call(10)])
+
+    @patch('main.askokcancel', return_value=True)
+    def test_undo_all_empty_board_and_pending_click_do_not_create_dot(self, confirm):
+        self.canvas.create_oval.reset_mock()
+        event = SimpleNamespace(x=20, y=30)
+        self.app.start_drawing(event)
+        self.app.undo_all()
+        self.app.stop_drawing(event)
+        self.app.undo_all()
+        self.assertEqual(confirm.call_count, 2)
+        self.canvas.create_oval.assert_not_called()
+        self.canvas.delete.assert_not_called()
+        self.assertEqual(self.app.items, [])
+
     def test_theme_round_trip_recolors_only_lines(self):
         self.canvas.find_withtag.return_value = [11]
         self.app.switch_theme()
