@@ -37,7 +37,7 @@ class EraserGeometryTests(unittest.TestCase):
 
 class RubberTests(unittest.TestCase):
     def setUp(self):
-        for name in ('tk.Tk', 'tk.Menu', 'tk.Canvas', 'ImageTk.PhotoImage'):
+        for name in ('Toolbar', 'tk.Tk', 'tk.Menu', 'tk.Canvas', 'ImageTk.PhotoImage'):
             patcher = patch('main.' + name)
             patcher.start()
             self.addCleanup(patcher.stop)

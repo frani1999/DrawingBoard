@@ -8,6 +8,7 @@ import os
 from logo import create_logo
 from eraser import remaining_segments
 from figure_tool import FigureTool
+from toolbar import Toolbar
 
 BLACK = 'black'
 WHITE = 'white'
@@ -26,6 +27,7 @@ class DrawingBoardApp:
         self.line_color = line_color if self._custom_color else (
             WHITE if bg_color == BLACK else BLACK)
         self.pencil_size = MIN_PENCIL_SIZE
+        self._thickness_gesture = None
         self._cursor_position = None
         self.active_tool = 'pencil'
         self._erase_action = None
@@ -58,6 +60,7 @@ class DrawingBoardApp:
             0, 0, 0, 0, 0, 0, fill='#dce7f0', outline='#263445',
             width=1, state='hidden')
         self.figure_tool = FigureTool(self)
+        self.toolbar = Toolbar(self, MIN_PENCIL_SIZE, MAX_PENCIL_SIZE)
 
         # Bindings
         self._bind_events()
@@ -110,7 +113,7 @@ class DrawingBoardApp:
         self.window.bind('<Control-Shift-R>', self.select_rubber)
         self.window.bind('<Control-Shift-P>', self.select_pencil)
         self.window.bind('<Control-Shift-F>', self.select_figures)
-        self.window.bind('<Escape>', self.figure_tool.cancel)
+        self.window.bind('<Escape>', self._cancel_gestures)
         for key in ('plus', 'equal', 'KP_Add'):
             self.window.bind(f'<Control-{key}>', self.increase_pencil_size)
         for key in ('minus', 'KP_Subtract'):
@@ -180,12 +183,45 @@ class DrawingBoardApp:
         return self._change_size(-1)
 
     def _change_size(self, delta):
+        self._cancel_thickness()
         self.figure_tool.cancel()
-        size = max(MIN_PENCIL_SIZE, min(MAX_PENCIL_SIZE, self.pencil_size + delta))
+        self._set_size(self.pencil_size + delta)
+        return 'break'
+
+    def _set_size(self, size, record=True):
+        size = max(MIN_PENCIL_SIZE, min(MAX_PENCIL_SIZE, size))
         if size != self.pencil_size:
             self.pencil_size = size
-            self.figure_tool.change_width()
+            self.figure_tool.change_width(record=record)
+        self.toolbar.refresh()
         self._update_cursor()
+
+    def _begin_thickness(self):
+        self.stop_drawing()
+        item = self.figure_tool.selected
+        before = (self.figure_tool.figures.get(item)
+                  if self.active_tool == 'figure' else None)
+        self._thickness_gesture = dict(size=self.pencil_size, item=item, before=before)
+
+    def _finish_thickness(self):
+        gesture, self._thickness_gesture = self._thickness_gesture, None
+        if gesture is not None and gesture['before'] is not None:
+            self.figure_tool.record_update(gesture['before'])
+
+    def _cancel_thickness(self, event=None):
+        gesture, self._thickness_gesture = self._thickness_gesture, None
+        if gesture is not None:
+            self.pencil_size = gesture['size']
+            if gesture['before'] is not None:
+                self.figure_tool.figures[gesture['item']] = gesture['before']
+                self.figure_tool.render(gesture['item'], gesture['before'])
+                self.figure_tool.show_selection()
+            self.toolbar.refresh()
+            self._update_cursor()
+
+    def _cancel_gestures(self, event=None):
+        self._cancel_thickness()
+        self.figure_tool.cancel()
         return 'break'
 
     def start_drawing(self, event=None):
@@ -204,6 +240,7 @@ class DrawingBoardApp:
 
     def stop_drawing(self, event=None):
         if event is None:
+            self._cancel_thickness()
             self.figure_tool.cancel()
         elif self.active_tool == 'figure':
             self.figure_tool.finish(event)
@@ -325,9 +362,12 @@ class DrawingBoardApp:
             self.line_color = selected_color
             self._custom_color = True
             self._update_cursor()
+        self.toolbar.refresh()
+        self.canvas.focus_set()
         return 'break'
 
     def switch_theme(self, event=None):
+        self._cancel_thickness()
         self.figure_tool.cancel()
         self.background_color = BLACK if self.background_color == WHITE else WHITE
         default_color = WHITE if self.background_color == BLACK else BLACK
@@ -337,6 +377,7 @@ class DrawingBoardApp:
             self.canvas.itemconfig(item, fill=default_color)
         self.canvas.configure(background=self.background_color)
         self.figure_tool.recolor()
+        self.toolbar.refresh()
         self._update_cursor()
 
     def save_draw(self, event=None):
@@ -468,6 +509,11 @@ class DrawingBoardApp:
             'Default: 1 pixel\n\n'
             'Adjustments stop at either limit.\n'
             'Pencil, rubber, and figure borders share the size.\n'
+            'Toolbar: click the color square to open the color picker.\n'
+            'Drag the vertical Thickness thumb: 0% = 1 px, 100% = 50 px.\n'
+            'Arrow keys adjust focused Thickness by 1 pixel.\n'
+            'One slider drag is one selected-figure border undo action.\n'
+            'Escape cancels an unfinished slider drag.\n'
             'Switching tools keeps it unchanged.\n'
             'The cursor outline shows the current tool size.\n'
             'Rubber erases pencil marks and preserves figures and imported images.\n'

@@ -201,12 +201,13 @@ class FigureTool:
         self.show_selection()
         return 'break'
 
-    def change_width(self):
+    def change_width(self, record=True):
         if self.app.active_tool == 'figure' and self.selected in self.figures:
             before = self.figures[self.selected]
             self.figures[self.selected] = replace(before, border=self.app.pencil_size)
             self.render(self.selected, self.figures[self.selected])
-            self.record_update(before)
+            if record:
+                self.record_update(before)
             self.show_selection()
 
     def undo(self, action):

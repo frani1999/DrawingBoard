@@ -4,6 +4,7 @@
 
 - `main.py` contains `DrawingBoardApp`, menus, the custom Help window, pencil/rubber event handlers, color selection, undo, and Pillow image import/export logic. Its entry point starts the desktop application.
 - `eraser.py` contains the pure `remaining_segments` geometry helper for continuous rubber drags; keep this module independent of Tkinter.
+- `toolbar.py` owns the separate color swatch and thickness track; `main.py` owns the shared size and slider transaction. `tests/test_toolbar.py` covers mapping and control events.
 - `figures.py` contains immutable figure geometry and hit testing, independent of Tkinter. `figure_tool.py` owns the chooser, figure registry, rendering, selection, gestures, and figure undo.
 - `tests/test_figures.py` covers pure transforms and a stateful canvas integration for figures, mixed undo history, themes, rubber exclusion, and export cleanup.
 - `logo.py` renders the geometric application logo with Pillow. The app uses it at runtime; `media/logo.png` is the README version.
@@ -36,6 +37,8 @@ Use standard-library `unittest` and `unittest.mock`. Name files `test_*.py` and 
 Cover click-only dots, stationary motion, normal drags, shared size limits, switching tools, color-picker cancellation, and theme changes. Rubber tests should cover clicks, fast and diagonal drags, partial segment cuts, dots, image preservation, and repeated erasing/undo. Check that export hides all cursor decorations and restores them after success or failure. Verify affected menu shortcuts, cursor icons, Help layout, and native dialogs in the running app.
 
 ## Drawing Tool and UI Invariants
+
+- The toolbar sits below the menus and outside the artwork canvas. Its swatch shows `line_color` in every tool and opens the existing picker. The slider maps 0% to 1 pixel and 100% to 50 pixels, rounding from the authoritative integer size. All size/color/theme changes synchronize the controls without callbacks mutating history. A completed drag updates a selected figure as one undo entry; Escape, focus loss, tool changes, dialogs, and undo cancel pending drags and restore their initial size/figure snapshot. Undo of a committed width edit keeps the global preference. Toolbar controls never appear in export or drawing history.
 
 - `File → Undo All` (`Ctrl+Shift+Z`) always asks “Are You sure you want to undo all design?” with OK/Cancel and Cancel as the default. Confirmation clears pencil marks and rubber history while preserving imported images, their image references and undo order, cursor decorations, and tool/theme settings. Individual image imports remain undoable with Ctrl+Z. Cancel preserves the design. Stop active strokes without creating a dot before opening the dialog. Cover these behaviors, repeated image-only calls, and the menu, shortcut, and Help text in tests.
 
