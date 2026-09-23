@@ -75,6 +75,11 @@ environment is unnecessary. `.venv` is already excluded from Git.
 
 ## Running tests
 
+Toolbar regression tests cover normalized percentages, endpoint clamping,
+pointer/keyboard controls, and synchronization. Stateful figure tests cover
+one undo action per thickness drag, no-op changes, and interruption rollback.
+No additional dependencies or setup steps are needed for the toolbar.
+
 After setup, if GNU Make is installed, run:
 
 ```sh
@@ -135,6 +140,14 @@ To run one test on Windows:
 Add new tests in files named `test_*.py` under `tests/` so discovery finds them.
 
 ## Troubleshooting
+
+For a manual toolbar check, click the color square and accept/cancel the picker,
+then switch themes using both default and custom colors. Drag Thickness to both
+ends (0% = 1 pixel, 100% = 50 pixels), release outside the track, and check the
+existing size shortcuts. Tab to the controls and test arrows, Enter, and Space.
+Change a selected figure's width with one drag, undo once, and verify only the
+figure width reverts. Check Escape/focus-loss cancellation, Help scrolling,
+window resizing, and that exported PNG/JPEG files contain no toolbar.
 
 - **`make` is not recognized:** use the manual setup commands above.
 - **`py` or `python3` is not found:** install Python and reopen your terminal,

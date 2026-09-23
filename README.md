@@ -17,6 +17,24 @@ export, undo, and a formatted Help window with the Drawing Board logo.
 
 The demo above shows an earlier version; the controls below describe the current app.
 
+### Color and thickness toolbar
+
+<img src="media/toolbar.png" alt="Color swatch and thickness slider below the menus" width="640"/>
+
+The strip below the menus shows the current drawing color and shared thickness.
+Click the color square to open the existing color picker; canceling keeps your
+selection. The square follows theme changes for default colors, while custom
+colors remain fixed. It shows the retained drawing color even in rubber mode.
+
+Drag the small vertical thumb along the Thickness bar. **0% means 1 pixel** and
+**100% means 50 pixels**; percentages are rounded from the actual integer width.
+The slider and size shortcuts stay synchronized. Tab to the slider and use arrow
+keys to adjust by one pixel; Enter or Space activates the focused color square.
+In figure mode, one completed slider drag changes the selected border as one undo
+action. Undo restores the figure width while retaining the shared size preference.
+Escape, focus loss, a tool change, or a dialog cancels an unfinished drag and
+restores its starting size. The toolbar is never included in exported images.
+
 ## Setup and run
 
 See [SETUP.md](doc/SETUP.md) for prerequisites and step-by-step instructions for
@@ -74,6 +92,7 @@ the current stroke width. The default size is **1 pixel**, with a minimum of
 - **Ctrl + +** increases the size by 1 pixel.
 - **Ctrl + -** decreases the size by 1 pixel.
 - **Ctrl + =** and **Ctrl + numeric keypad + / -** also work.
+- The toolbar slider changes the same shared size with the mouse.
 
 Further adjustments at either limit leave the size unchanged. Size changes apply
 to new drawing segments and update the cursor outline immediately. The outline
@@ -103,7 +122,7 @@ unfinished placement or transformation.
 
 New figures inherit the current color and shared **1–50 pixel** tool size.
 **Ctrl++ / Ctrl+-** (and existing aliases) also change the selected figure's
-border in figure mode. Each completed placement, resize, rotation, or border
+border in figure mode, as does the toolbar slider. Each completed placement, resize, rotation, or border
 change is one **Ctrl+Z** action. Undoing a border change restores that figure's
 width without changing the shared size preference. Color selection applies to
 future artwork. Default-colored figures follow the theme; custom colors stay fixed.
@@ -123,7 +142,7 @@ it does not paint over them or alter figures. **Ctrl+Z** restores the last rubbe
 
 The pencil and rubber share one size: **1 pixel by default**, adjustable from
 **1 to 50 pixels** with **Ctrl + + / -** (including the alternate size shortcuts
-above). Switching tools keeps the current size, including changes made with the
+above) or the toolbar slider. Switching tools keeps the current size, including changes made with the
 rubber selected. Choose **Select → Pencil** (**Ctrl+Shift+P**) to resume drawing
 with the previous pencil color. The rubber icon and size outline are excluded
 from saved images.
@@ -131,6 +150,7 @@ from saved images.
 ## Development and tests
 
 - `main.py`: Tkinter application, menus, Help, drawing tools, undo, and image I/O.
+- `toolbar.py`: color swatch, thickness slider, and percentage conversion.
 - `eraser.py`: geometry for cutting pencil segments along a rubber drag.
 - `figures.py`: immutable figure models, transforms, and border hit testing.
 - `figure_tool.py`: chooser, canvas rendering, editing gestures, and figure undo.
@@ -138,6 +158,7 @@ from saved images.
 - `tests/test_main.py`: application, dialogs, drawing, dots, color, Help, and export tests.
 - `tests/test_eraser.py`: rubber geometry and stateful canvas behavior tests.
 - `tests/test_figures.py`: figure geometry, stateful editing, undo, themes, and export tests.
+- `tests/test_toolbar.py`: thickness mapping, toolbar layout, and pointer/keyboard controls.
 - `media/logo.png`: logo used in this README; the app renders its icon at runtime.
 
 Run `make test`, or use PowerShell from the repository root:

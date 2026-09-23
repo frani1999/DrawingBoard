@@ -14,7 +14,7 @@ from main import BLACK, WHITE, MAX_PENCIL_SIZE, MIN_PENCIL_SIZE, DrawingBoardApp
 class DrawingBoardTests(unittest.TestCase):
     def setUp(self):
         # Exercise the real constructor while keeping all Tk widgets headless.
-        for target in ("main.tk.Tk", "main.tk.Canvas", "main.tk.Menu",
+        for target in ("main.Toolbar", "main.tk.Tk", "main.tk.Canvas", "main.tk.Menu",
                        "main.ImageTk.PhotoImage", "main.tk.Toplevel",
                        "main.ttk.Frame", "main.ttk.Label", "main.ttk.Button", "main.ttk.Scrollbar",
                        "main.tkfont.nametofont"):
@@ -44,6 +44,29 @@ class DrawingBoardTests(unittest.TestCase):
         self.app.undo()
         self.canvas.delete.assert_called_once_with(12)
         self.assertEqual(self.app.items, [11])
+
+    def test_toolbar_refreshes_after_color_theme_and_keyboard_changes(self):
+        for color in ('#ff0000', 'black', 'white'):
+            with patch('main.colorchooser.askcolor', return_value=(None, color)):
+                self.app.toolbar.refresh.reset_mock()
+                self.app.select_color()
+                self.app.toolbar.refresh.assert_called_once()
+                self.assertEqual(self.app.line_color, color)
+                self.app.canvas.focus_set.assert_called()
+            self.app.switch_theme()
+            self.assertEqual(self.app.line_color, color)
+        self.app._custom_color = False
+        self.app.switch_theme()
+        self.assertNotEqual(self.app.line_color, self.app.background_color)
+        self.app.toolbar.refresh.reset_mock()
+        self.app.increase_pencil_size()
+        self.app.toolbar.refresh.assert_called_once()
+        self.assertEqual(self.app.pencil_size, 2)
+        with patch('main.colorchooser.askcolor', return_value=(None, None)):
+            color = self.app.line_color
+            self.app.select_color()
+            self.assertEqual(self.app.line_color, color)
+            self.assertFalse(self.app._custom_color)
 
     def test_click_creates_dot_with_selected_size_color_and_undo(self):
         self.canvas.create_oval.reset_mock()

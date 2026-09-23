@@ -63,7 +63,7 @@ class GeometryTests(unittest.TestCase):
 class FigureTests(unittest.TestCase):
     def setUp(self):
         self.mocks = {}
-        for name in ('tk.Tk', 'tk.Menu', 'tk.Canvas', 'tk.Toplevel',
+        for name in ('Toolbar', 'tk.Tk', 'tk.Menu', 'tk.Canvas', 'tk.Toplevel',
                      'ImageTk.PhotoImage', 'ttk.Frame', 'ttk.Label',
                      'ttk.Button', 'ttk.Scrollbar', 'tkfont.nametofont', 'showinfo'):
             patcher = patch('main.' + name)
@@ -134,6 +134,86 @@ class FigureTests(unittest.TestCase):
         self.app.draw(event(*end))
         self.app.stop_drawing(event(*end))
         return self.tool.selected
+
+    def test_slider_batches_history_and_undo_preserves_global_size(self):
+        self.place()
+        item = self.tool.selected
+        before = self.tool.figures[item]
+        history = list(self.app.items)
+        self.app._begin_thickness()
+        for size in (10, 20, 40, 50):
+            self.app._set_size(size, record=False)
+        self.assertEqual(self.app.items, history)
+        self.assertEqual(self.tool.figures[item], replace(before, border=50))
+        self.app._finish_thickness()
+        self.assertEqual(len(self.app.items), len(history) + 1)
+        self.app.undo()
+        self.assertEqual(self.tool.figures[item], before)
+        self.assertEqual(self.app.pencil_size, 50)
+        self.app.increase_pencil_size()
+        self.assertEqual(self.app.items, history)
+        self.app.decrease_pencil_size()
+        self.assertEqual(self.tool.figures[item].border, 49)
+        self.assertEqual(len(self.app.items), len(history) + 1)
+
+    def test_slider_noop_return_to_start_and_cancellation(self):
+        self.place()
+        item = self.tool.selected
+        before = self.tool.figures[item]
+        history = list(self.app.items)
+        for sizes in ((), (25, 1)):
+            self.app._begin_thickness()
+            for size in sizes:
+                self.app._set_size(size, record=False)
+            self.app._finish_thickness()
+            self.assertEqual(self.app.items, history)
+        for interrupt in (self.app._cancel_gestures, self.app.select_rubber,
+                          self.app.switch_theme, self.app._cancel_thickness):
+            self.app._select_tool('figure')
+            self.tool.selected = item
+            self.app._begin_thickness()
+            self.app._set_size(30, record=False)
+            interrupt()
+            self.assertIsNone(self.app._thickness_gesture)
+            self.assertEqual(self.tool.figures[item], before)
+            self.assertEqual(self.app.pencil_size, 1)
+            self.assertEqual(self.app.items, history)
+
+    def test_slider_dialog_export_and_undo_all_cancel_pending_width(self):
+        self.place()
+        item = self.tool.selected
+        before = self.tool.figures[item]
+        history = list(self.app.items)
+        with patch('main.colorchooser.askcolor', return_value=(None, None)), \
+                patch('main.filedialog.asksaveasfilename', return_value=''), \
+                patch('main.askokcancel', return_value=False):
+            for interrupt in (self.app.select_color, self.app.save_draw, self.app.undo_all):
+                self.app._begin_thickness()
+                self.app._set_size(40, record=False)
+                interrupt()
+                self.assertEqual(self.tool.figures[item], before)
+                self.assertEqual(self.app.pencil_size, 1)
+                self.assertEqual(self.app.items, history)
+        self.app._begin_thickness()
+        self.app._set_size(40, record=False)
+        self.app.undo()
+        self.assertNotIn(item, self.tool.figures)
+        self.assertEqual(self.app.pencil_size, 1)
+
+    def test_slider_stops_pending_dot_and_figure_preview(self):
+        self.app.start_drawing(event(10, 10))
+        self.app._begin_thickness()
+        self.assertFalse(self.app.is_drawing)
+        self.assertEqual(self.app.items, [])
+        self.app._finish_thickness()
+        self.tool.choose('Rectangle')
+        self.app.start_drawing(event(20, 20))
+        self.app.draw(event(80, 80))
+        self.assertIsNotNone(self.tool.preview)
+        self.app._begin_thickness()
+        self.assertIsNone(self.tool.preview)
+        self.assertIsNone(self.tool.gesture)
+        self.assertEqual(self.app.items, [])
 
     def test_each_kind_commits_one_action_with_current_style(self):
         self.app.select_rubber()
