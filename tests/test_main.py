@@ -16,7 +16,7 @@ class DrawingBoardTests(unittest.TestCase):
         # Exercise the real constructor while keeping all Tk widgets headless.
         for target in ("main.tk.Tk", "main.tk.Canvas", "main.tk.Menu",
                        "main.ImageTk.PhotoImage", "main.tk.Toplevel",
-                       "main.ttk.Frame", "main.ttk.Label", "main.ttk.Button",
+                       "main.ttk.Frame", "main.ttk.Label", "main.ttk.Button", "main.ttk.Scrollbar",
                        "main.tkfont.nametofont"):
             patcher = patch(target)
             patcher.start()
@@ -237,7 +237,7 @@ class DrawingBoardTests(unittest.TestCase):
         self.app._move_cursor(SimpleNamespace(x=10, y=20))
         self.app.select_color()
         chooser.assert_called_once_with(
-            color=BLACK, parent=self.app.window, title='Pencil Color')
+            color=BLACK, parent=self.app.window, title='Drawing Color')
         self.canvas.itemconfigure.assert_called_with(
             self.app._cursor_outline, outline='#ff0000', state='normal')
         self.app.start_drawing(SimpleNamespace(x=10, y=20))
@@ -355,7 +355,8 @@ class DrawingBoardTests(unittest.TestCase):
         for expected in ('Ctrl++', 'Ctrl+-', 'Minimum: 1 pixel',
                          'Maximum: 50 pixels', 'Default: 1 pixel', 'outline', 'limit',
                          'PNG or JPEG', 'Ctrl+Shift+C', 'Ctrl+Shift+R',
-                         'Ctrl+Shift+P', 'Both tools share the size'):
+                         'Ctrl+Shift+P', 'Pencil, rubber, and figure borders share the size',
+                         'Ctrl+Shift+F', 'resize', 'rotate', 'Escape', 'Edit existing figures'):
             self.assertIn(expected, text)
         self.showinfo.assert_not_called()
         for label in labels:

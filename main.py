@@ -7,6 +7,7 @@ from datetime import datetime
 import os
 from logo import create_logo
 from eraser import remaining_segments
+from figure_tool import FigureTool
 
 BLACK = 'black'
 WHITE = 'white'
@@ -56,6 +57,7 @@ class DrawingBoardApp:
         self._rubber_sleeve = self.canvas.create_polygon(
             0, 0, 0, 0, 0, 0, fill='#dce7f0', outline='#263445',
             width=1, state='hidden')
+        self.figure_tool = FigureTool(self)
 
         # Bindings
         self._bind_events()
@@ -75,6 +77,7 @@ class DrawingBoardApp:
         select_menu.add_command(label='Color', accelerator='Ctrl+Shift+C', command=self.select_color)
         select_menu.add_command(label='Pencil', accelerator='Ctrl+Shift+P', command=self.select_pencil)
         select_menu.add_command(label='Rubber', accelerator='Ctrl+Shift+R', command=self.select_rubber)
+        select_menu.add_command(label='Figures', accelerator='Ctrl+Shift+F', command=self.select_figures)
 
         view_menu = tk.Menu(menubar, tearoff=False)
         view_menu.add_command(label='Switch Theme', accelerator='Ctrl+T', command=self.switch_theme)
@@ -106,6 +109,8 @@ class DrawingBoardApp:
         self.window.bind('<Control-Shift-C>', self.select_color)
         self.window.bind('<Control-Shift-R>', self.select_rubber)
         self.window.bind('<Control-Shift-P>', self.select_pencil)
+        self.window.bind('<Control-Shift-F>', self.select_figures)
+        self.window.bind('<Escape>', self.figure_tool.cancel)
         for key in ('plus', 'equal', 'KP_Add'):
             self.window.bind(f'<Control-{key}>', self.increase_pencil_size)
         for key in ('minus', 'KP_Subtract'):
@@ -122,6 +127,9 @@ class DrawingBoardApp:
         self.canvas.itemconfigure(self._rubber_sleeve, state='hidden')
 
     def _update_cursor(self):
+        if self.active_tool == 'figure':
+            self._hide_cursor()
+            return
         if self._cursor_position is None:
             return
         x, y = self._cursor_position
@@ -146,8 +154,11 @@ class DrawingBoardApp:
     def _select_tool(self, tool):
         self.stop_drawing()
         self.active_tool = tool
-        self.canvas.configure(cursor='pencil' if tool == 'pencil' else 'none')
-        if tool == 'pencil':
+        self.figure_tool.selected = None
+        self.figure_tool.clear_decorations()
+        self.canvas.configure(cursor={'pencil': 'pencil', 'rubber': 'none',
+                                      'figure': 'crosshair'}[tool])
+        if tool != 'rubber':
             self.canvas.itemconfigure(self._rubber_icon, state='hidden')
             self.canvas.itemconfigure(self._rubber_sleeve, state='hidden')
         self._update_cursor()
@@ -159,17 +170,29 @@ class DrawingBoardApp:
     def select_rubber(self, event=None):
         return self._select_tool('rubber')
 
+    def select_figures(self, event=None):
+        return self.figure_tool.show_chooser(event)
+
     def increase_pencil_size(self, event=None):
-        self.pencil_size = min(MAX_PENCIL_SIZE, self.pencil_size + 1)
-        self._update_cursor()
-        return 'break'
+        return self._change_size(1)
 
     def decrease_pencil_size(self, event=None):
-        self.pencil_size = max(MIN_PENCIL_SIZE, self.pencil_size - 1)
+        return self._change_size(-1)
+
+    def _change_size(self, delta):
+        self.figure_tool.cancel()
+        size = max(MIN_PENCIL_SIZE, min(MAX_PENCIL_SIZE, self.pencil_size + delta))
+        if size != self.pencil_size:
+            self.pencil_size = size
+            self.figure_tool.change_width()
         self._update_cursor()
         return 'break'
 
     def start_drawing(self, event=None):
+        if self.active_tool == 'figure':
+            if event is not None:
+                self.figure_tool.start(event)
+            return
         if event:
             self.is_drawing = True
             self._stroke_moved = False
@@ -180,6 +203,10 @@ class DrawingBoardApp:
                 self._move_cursor(event)
 
     def stop_drawing(self, event=None):
+        if event is None:
+            self.figure_tool.cancel()
+        elif self.active_tool == 'figure':
+            self.figure_tool.finish(event)
         if (event is not None and self.is_drawing
                 and self.active_tool == 'pencil' and not self._stroke_moved):
             radius = self.pencil_size / 2
@@ -195,6 +222,10 @@ class DrawingBoardApp:
         self._erase_action = None
 
     def draw(self, event=None):
+        if self.active_tool == 'figure':
+            if event is not None:
+                self.figure_tool.move(event)
+            return
         if not self.is_drawing or event is None:
             return
         if (event.x, event.y) == (self.last_x, self.last_y):
@@ -218,7 +249,10 @@ class DrawingBoardApp:
         self.stop_drawing()
         if self.items:
             last_id = self.items.pop()
-            if isinstance(last_id, dict):
+            if isinstance(last_id, dict) and last_id.get('type') in (
+                    'figure_create', 'figure_update'):
+                self.figure_tool.undo(last_id)
+            elif isinstance(last_id, dict):
                 for original, replacements in reversed(last_id['erased']):
                     for item in replacements:
                         self.canvas.delete(item)
@@ -250,6 +284,9 @@ class DrawingBoardApp:
             min(start[0], x) - radius, min(start[1], y) - radius,
             max(start[0], x) + radius, max(start[1], y) + radius)
         for item in candidates:
+            if any(tag in self.canvas.gettags(item) for tag in (
+                    'figure', 'figure_preview', 'figure_decoration')):
+                continue
             item_type = self.canvas.type(item)
             is_dot = item_type == 'oval' and 'pencil_dot' in self.canvas.gettags(item)
             if item_type != 'line' and not is_dot:
@@ -283,7 +320,7 @@ class DrawingBoardApp:
     def select_color(self, event=None):
         self.stop_drawing()
         _, selected_color = colorchooser.askcolor(
-            color=self.line_color, parent=self.window, title='Pencil Color')
+            color=self.line_color, parent=self.window, title='Drawing Color')
         if selected_color:
             self.line_color = selected_color
             self._custom_color = True
@@ -291,6 +328,7 @@ class DrawingBoardApp:
         return 'break'
 
     def switch_theme(self, event=None):
+        self.figure_tool.cancel()
         self.background_color = BLACK if self.background_color == WHITE else WHITE
         default_color = WHITE if self.background_color == BLACK else BLACK
         if not self._custom_color:
@@ -298,9 +336,11 @@ class DrawingBoardApp:
         for item in self.canvas.find_withtag('theme_color'):
             self.canvas.itemconfig(item, fill=default_color)
         self.canvas.configure(background=self.background_color)
+        self.figure_tool.recolor()
         self._update_cursor()
 
     def save_draw(self, event=None):
+        self.stop_drawing()
         # Force refresh to obtain correct sizes
         self.canvas.update()
 
@@ -327,6 +367,7 @@ class DrawingBoardApp:
         ps_path = os.path.join(dirpath, ps_filename)
 
         try:
+            self.figure_tool.clear_decorations()
             self.canvas.itemconfigure(self._cursor_outline, state='hidden')
             self.canvas.itemconfigure(self._rubber_icon, state='hidden')
             self.canvas.itemconfigure(self._rubber_sleeve, state='hidden')
@@ -342,6 +383,7 @@ class DrawingBoardApp:
             showinfo("Drawing Board error", f"Cannot save image {os.path.basename(file_path)}: {e}")
             return
         finally:
+            self.figure_tool.show_selection()
             self._update_cursor()
             # Delete ps file
             try:
@@ -358,6 +400,7 @@ class DrawingBoardApp:
         showinfo("Drawing Board info", f"Image saved successfully as {os.path.basename(file_path)}")
 
     def show_help(self, event=None):
+        self.stop_drawing()
         if self._help_window is not None and self._help_window.winfo_exists():
             self._help_window.lift()
             self._help_window.focus_set()
@@ -368,9 +411,27 @@ class DrawingBoardApp:
         dialog.title('Drawing Board Help')
         dialog.transient(self.window)
         dialog.iconphoto(False, self._logo)
-        dialog.resizable(False, False)
-        body = ttk.Frame(dialog, padding=24)
-        body.pack(fill='both', expand=True)
+        dialog.geometry('740x600')
+        dialog.minsize(740, 300)
+        viewport = tk.Canvas(dialog, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(dialog, orient='vertical', command=viewport.yview)
+        viewport.configure(yscrollcommand=scrollbar.set)
+        close = ttk.Button(dialog, text='Close', command=self._close_help)
+        close.pack(side='bottom', anchor='e', padx=20, pady=12)
+        scrollbar.pack(side='right', fill='y')
+        viewport.pack(side='left', fill='both', expand=True)
+        body = ttk.Frame(viewport, padding=24)
+        content = viewport.create_window(0, 0, window=body, anchor='nw')
+        body.bind('<Configure>', lambda event: viewport.configure(
+            scrollregion=viewport.bbox('all')))
+        viewport.bind('<Configure>', lambda event: viewport.itemconfigure(
+            content, width=event.width))
+        dialog.bind('<MouseWheel>', lambda event: viewport.yview_scroll(
+            -1 if event.delta > 0 else 1, 'units'))
+        dialog.bind('<Button-4>', lambda event: viewport.yview_scroll(-1, 'units'))
+        dialog.bind('<Button-5>', lambda event: viewport.yview_scroll(1, 'units'))
+        dialog.bind('<Next>', lambda event: viewport.yview_scroll(1, 'pages'))
+        dialog.bind('<Prior>', lambda event: viewport.yview_scroll(-1, 'pages'))
         # Keep the font alive and respect the platform's default font family/size.
         dialog.bold_font = tkfont.nametofont('TkDefaultFont').copy()
         dialog.bold_font.configure(weight='bold')
@@ -380,8 +441,8 @@ class DrawingBoardApp:
         ttk.Label(body, text='Keyboard shortcuts:', font=dialog.bold_font).grid(
             row=1, column=0, columnspan=2, sticky='w', padx=(16, 0), pady=(0, 8))
         shortcuts = (
-            ('Ctrl+Z', 'Undo drawing, import, or rubber stroke'),
-            ('Ctrl+Shift+Z', 'Undo All: clear pencil marks after confirmation'),
+            ('Ctrl+Z', 'Undo drawing, figure edit, import, or rubber stroke'),
+            ('Ctrl+Shift+Z', 'Undo All: clear pencil marks and figures after confirmation'),
             ('Ctrl+T', 'Switch between black and white theme'),
             ('Ctrl+S', 'Save the current drawing as PNG or JPEG'),
             ('Ctrl+H', 'Show keyboard shortcuts help'),
@@ -389,8 +450,9 @@ class DrawingBoardApp:
             ('Ctrl+Shift+C', 'Open the color selector'),
             ('Ctrl+Shift+R', 'Select the rubber'),
             ('Ctrl+Shift+P', 'Select the pencil'),
-            ('Ctrl++', 'Increase pencil / rubber size by 1 pixel'),
-            ('Ctrl+-', 'Decrease pencil / rubber size by 1 pixel'),
+            ('Ctrl+Shift+F', 'Open the figure chooser'),
+            ('Ctrl++', 'Increase shared size / selected figure border by 1 pixel'),
+            ('Ctrl+-', 'Decrease shared size / selected figure border by 1 pixel'),
         )
         for row, (command, description) in enumerate(shortcuts, start=2):
             ttk.Label(body, text=command, font=dialog.bold_font).grid(
@@ -398,25 +460,39 @@ class DrawingBoardApp:
             ttk.Label(body, text=f'→ {description}').grid(
                 row=row, column=1, sticky='w', pady=3)
         size_row = len(shortcuts) + 2
-        ttk.Label(body, text='Pencil / rubber size:', font=dialog.bold_font).grid(
+        ttk.Label(body, text='Pencil / rubber / figure border size:', font=dialog.bold_font).grid(
             row=size_row, column=0, columnspan=2, sticky='w', padx=(16, 0), pady=(16, 8))
         details = (
             f'Minimum: {MIN_PENCIL_SIZE} pixel\n'
             f'Maximum: {MAX_PENCIL_SIZE} pixels\n'
             'Default: 1 pixel\n\n'
             'Adjustments stop at either limit.\n'
-            'Both tools share the size; switching tools keeps it unchanged.\n'
+            'Pencil, rubber, and figure borders share the size.\n'
+            'Switching tools keeps it unchanged.\n'
             'The cursor outline shows the current tool size.\n'
-            'Rubber erases pencil marks and preserves imported images.\n'
-            'File → Undo All clears pencil marks and keeps imported images.\n'
+            'Rubber erases pencil marks and preserves figures and imported images.\n'
+            'File → Undo All clears pencil marks and figures, keeping imported images.\n'
             'Confirm with OK or choose Cancel to keep the design.\n'
             'Undo All cannot be reversed with Ctrl+Z.\n'
             'Ctrl+= and Ctrl + numeric keypad + / - also work.'
         )
         ttk.Label(body, text=details, justify='left').grid(
             row=size_row + 1, column=0, columnspan=2, sticky='w', padx=(40, 0))
-        close = ttk.Button(body, text='Close', command=self._close_help)
-        close.grid(row=size_row + 2, column=0, columnspan=2, sticky='e', pady=(16, 0))
+        ttk.Label(body, text='Figures:', font=dialog.bold_font).grid(
+            row=size_row + 2, column=0, columnspan=2, sticky='w', padx=(16, 0), pady=(16, 8))
+        ttk.Label(body, text=(
+            'Choose Rectangle, Ellipse, or Triangle in Select → Figures.\n'
+            'Drag empty space to place a figure in the selected color.\n'
+            'Choose Edit existing figures to reselect a figure by its border.\n'
+            'Drag a square corner handle to resize around the center.\n'
+            'Drag the round blue handle to rotate around the center.\n'
+            'Resizing preserves border width; Ctrl++ / Ctrl+- change it.\n'
+            'Escape or switching tools cancels the current gesture.\n'
+            'Ctrl+Z undoes each placement, resize, rotation, or border edit.\n'
+            'Default colors follow the theme; custom colors stay fixed.\n'
+            'Selection handles and previews are excluded from saved images.'
+        ), justify='left', wraplength=580).grid(
+            row=size_row + 3, column=0, columnspan=2, sticky='w', padx=(40, 0))
         dialog.protocol('WM_DELETE_WINDOW', self._close_help)
         dialog.bind('<Escape>', self._close_help)
         dialog.bind('<Return>', self._close_help)
@@ -431,6 +507,7 @@ class DrawingBoardApp:
         return 'break'
 
     def import_image(self, event=None):
+        self.stop_drawing()
         filetypes = [("Image files", ("*.png", "*.jpg", "*.jpeg", "*.gif", "*.bmp")), ("All files", "*.*")]
         path = filedialog.askopenfilename(title="Import Image", filetypes=filetypes)
         if not path:
@@ -458,6 +535,7 @@ class DrawingBoardApp:
         self.items.append(img_id)
         # Save reference so that Python does not delete it
         self._image_refs.append(tk_img)
+        self.figure_tool.show_selection()
         self._update_cursor()
 
     def run(self):

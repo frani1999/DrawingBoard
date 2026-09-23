@@ -4,6 +4,8 @@
 
 - `main.py` contains `DrawingBoardApp`, menus, the custom Help window, pencil/rubber event handlers, color selection, undo, and Pillow image import/export logic. Its entry point starts the desktop application.
 - `eraser.py` contains the pure `remaining_segments` geometry helper for continuous rubber drags; keep this module independent of Tkinter.
+- `figures.py` contains immutable figure geometry and hit testing, independent of Tkinter. `figure_tool.py` owns the chooser, figure registry, rendering, selection, gestures, and figure undo.
+- `tests/test_figures.py` covers pure transforms and a stateful canvas integration for figures, mixed undo history, themes, rubber exclusion, and export cleanup.
 - `logo.py` renders the geometric application logo with Pillow. The app uses it at runtime; `media/logo.png` is the README version.
 - `tests/test_main.py` covers application behavior with mocked Tk widgets. `tests/test_eraser.py` covers real geometry and rubber behavior using a stateful canvas mock; `tests/__init__.py` enables test discovery.
 - `media/` holds the logo, screenshots, and demo assets used by `README.md`. Older demos may not show the current controls.
@@ -37,14 +39,20 @@ Cover click-only dots, stationary motion, normal drags, shared size limits, swit
 
 - `File → Undo All` (`Ctrl+Shift+Z`) always asks “Are You sure you want to undo all design?” with OK/Cancel and Cancel as the default. Confirmation clears pencil marks and rubber history while preserving imported images, their image references and undo order, cursor decorations, and tool/theme settings. Individual image imports remain undoable with Ctrl+Z. Cancel preserves the design. Stop active strokes without creating a dot before opening the dialog. Cover these behaviors, repeated image-only calls, and the menu, shortcut, and Help text in tests.
 
-- The menus are `File`, `Select`, `View`, and `Help`. `Select` offers Color (`Ctrl+Shift+C`), Pencil (`Ctrl+Shift+P`), and Rubber (`Ctrl+Shift+R`). Keep bindings, menu accelerators, Help, and README consistent.
-- `pencil_size` is the shared size for both tools, initially `MIN_PENCIL_SIZE` (1 pixel), bounded by `MAX_PENCIL_SIZE` (50 pixels). `Ctrl++` / `Ctrl+-` adjust it by 1; `Ctrl+=` and numeric keypad add/subtract also work. Switching tools preserves size and pencil color.
+- The menus are `File`, `Select`, `View`, and `Help`. `Select` offers Color (`Ctrl+Shift+C`), Pencil (`Ctrl+Shift+P`), Rubber (`Ctrl+Shift+R`), and Figures (`Ctrl+Shift+F`). Keep bindings, menu accelerators, Help, and README consistent.
+- `pencil_size` is shared by pencil, rubber, and new figure borders, initially `MIN_PENCIL_SIZE` (1 pixel), bounded by `MAX_PENCIL_SIZE` (50 pixels). `Ctrl++` / `Ctrl+-` adjust it by 1; `Ctrl+=` and numeric keypad add/subtract also work. In figure mode effective changes also update the selected border as one undo action. Undo restores the figure's width, not the global size preference. Switching tools preserves size and pencil color.
 - Default pencil marks use the `theme_color` canvas tag and follow the canvas theme: black on white, white on black. Explicit color selections, including black or white, remain fixed across theme changes. A canceled picker must preserve the selection and default/custom status.
 - A click-release without motion creates a filled oval tagged `pencil_dot`. Drags create round-ended line segments. Internal calls to `stop_drawing()` must not commit a dot. Rubber hit testing must distinguish pencil dots from cursor ovals.
 - Rubber erases pencil marks without painting background-colored strokes or altering imported images. Line cuts use the capsule swept between mouse events; touched dots are removed as whole marks.
 - `items` is an undo history containing canvas IDs and rubber action dictionaries. Each rubber action stores an `erased` list of `(original_id, replacement_ids)` pairs. Originals remain hidden to preserve geometry and stacking; undo reverses these pairs, deletes replacements, and reveals originals. Preserve this ordering and theme tags on replacements.
 - The pencil outline and rubber icon/sleeve are cursor decorations, not drawing history. Hide them on leave and during export, restore the active preview afterward, and keep them above artwork.
+- Figures are transparent outlined Rectangle/Ellipse/Triangle models keyed by stable canvas IDs. In figure mode, hit test visible borders in reverse stacking order, with selection handles taking priority. Resize on local axes about the center (minimum 1 pixel), preserve rotation and border width, and rotate around the center. Each placement/transform commits once; canceled or no-op gestures never enter history. Escape, tool changes, and dialogs cancel pending figure gestures.
+- Figure paths, previews, and handles carry explicit tags and must be excluded from rubber geometry. Never pass multi-point figure paths to the two-endpoint `remaining_segments` helper. Rubber preserves editable figures.
+- Figure history dictionaries use `type` values `figure_create` and `figure_update`; dispatch them separately from rubber records. Update snapshots retain default/custom color policy; render default colors against the current theme even after undo. Update existing canvas items to preserve stacking.
+- Confirmed Undo All additionally clears figures and figure history, retaining all existing image, confirmation, and tool-setting invariants. Cancel preserves committed figures; pending gestures are canceled before the dialog.
+- Selection outlines, handles, and insertion previews are not artwork. Cancel pending gestures before export, remove selection decorations during PostScript generation, and restore them on success or failure. Exported PNG/JPEG files do not serialize editable figure objects.
 - Help is a reusable `Toplevel` with indented sections, bold commands, the app logo, and no standard information icon. Close, Escape, and Enter dismiss it and return focus to the canvas. Keep font, logo, and imported-image references alive.
+- Help scrolls vertically (wheel, scrollbar, Page Up/Down) so figure instructions remain accessible. The figure chooser is reusable; Cancel/Escape/window close preserve tool settings and restore canvas focus.
 
 ## Commit & Pull Request Guidelines
 

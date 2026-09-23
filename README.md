@@ -10,7 +10,8 @@ This project implements a simple drawing board based on [*Linkfy*](https://www.y
 <img src="media/gif1.gif" alt="Demo" width="400"/>
 
 Draw freehand lines or single-click dots, choose pencil colors, and erase marks
-with a rubber tool. Both tools have size previews and share an adjustable size.
+with a rubber tool. Add outlined rectangles, ellipses, and triangles, then resize
+and rotate them. Pencil, rubber, and figure borders share an adjustable size.
 The app also supports black and white canvas themes, image import, PNG/JPEG
 export, undo, and a formatted Help window with the Drawing Board logo.
 
@@ -28,25 +29,26 @@ once, then `make run` to open the application.
 |-------|--------------|-------------------|-------------------------------------------------------------------------------|
 | File  | Save Drawing | **Ctrl+S**        | Save current drawing. <br/>User can select path, name and format (png or jpg) |
 | File  | Import Image | **Ctrl+I**        | Import local image to draw                                                    |
-| File  | Undo All     | **Ctrl+Shift+Z**  | Clear pencil marks after confirmation; keep imported images |
+| File  | Undo All     | **Ctrl+Shift+Z**  | Clear pencil marks and figures after confirmation; keep imported images |
 | File  | Exit         | -                 | Exit the application                                                          |
-| Select | Color       | **Ctrl+Shift+C**  | Choose the pencil color for new strokes |
+| Select | Color       | **Ctrl+Shift+C**  | Choose the color for new strokes and figures |
 | Select | Pencil      | **Ctrl+Shift+P**  | Switch back to drawing |
 | Select | Rubber      | **Ctrl+Shift+R**  | Erase pencil marks |
+| Select | Figures     | **Ctrl+Shift+F**  | Choose a figure or edit existing figures |
 | View  | Switch Theme | **Ctrl+T**        | Switch between black and white theme                                          |
 | Help  | Show Help    | **Ctrl+H**        | Show keyboard shortcuts help                                                  |
 
 ### Other keyboard shortcuts
 
-- **Ctrl+Z** → Undo a drawing segment, dot, image import, or rubber stroke
+- **Ctrl+Z** → Undo a drawing segment, dot, figure creation/edit, image import, or rubber stroke
 - **Ctrl + + / -** → Increase or decrease the active tool size by 1 pixel
 
 ### Undo All
 
-Choose **File → Undo All** (**Ctrl+Shift+Z**) to remove all pencil lines and dots
+Choose **File → Undo All** (**Ctrl+Shift+Z**) to remove all pencil lines, dots, and figures
 while keeping imported images. A warning asks **“Are You sure you want to undo all design?”**
 Choose **OK** to accept or **Cancel** to keep the design; Cancel is selected by
-default. This clears drawing and rubber history, so **Ctrl+Z cannot restore the
+default. This clears drawing, figure editing, and rubber history, so **Ctrl+Z cannot restore the
 cleared marks**. Image imports remain in undo history and can still be undone
 individually with **Ctrl+Z**.
 The selected tool, size, color, and canvas theme stay unchanged.
@@ -80,14 +82,44 @@ are also available under **Help → Show Help** (**Ctrl+H**).
 
 The Help window groups shortcuts and shared tool sizes into indented sections, with
 bold shortcut commands. It uses the Drawing Board logo instead of an information
-icon. Press **Escape**, **Enter**, or **Close** to dismiss it.
+icon. Scroll or use **Page Up / Page Down** to read all sections. Press
+**Escape**, **Enter**, or **Close** to dismiss it.
+
+### Standard figures
+
+<img src="media/figures.png" alt="Rotated ellipse selected with resize and rotation handles" width="640"/>
+
+Open **Select → Figures** (**Ctrl+Shift+F**) and choose **Rectangle**, **Ellipse**,
+or **Triangle**. Drag empty canvas space to place an outlined figure; its interior
+is transparent. Equal width and height produce a square or circle. A click or
+zero-area drag creates nothing. The chooser also offers **Edit existing figures**.
+
+In figure mode, click a figure's border to select it (the topmost figure wins
+when borders overlap). Drag a square corner handle to resize along the figure's
+axes around its fixed center. Drag the round blue handle to rotate. Resizing
+keeps the rotation and border width; crossing the center clamps dimensions to
+1 pixel. Click empty space to deselect. **Escape** or switching tools cancels an
+unfinished placement or transformation.
+
+New figures inherit the current color and shared **1–50 pixel** tool size.
+**Ctrl++ / Ctrl+-** (and existing aliases) also change the selected figure's
+border in figure mode. Each completed placement, resize, rotation, or border
+change is one **Ctrl+Z** action. Undoing a border change restores that figure's
+width without changing the shared size preference. Color selection applies to
+future artwork. Default-colored figures follow the theme; custom colors stay fixed.
+
+Rubber preserves figures and imported images. **Undo All** clears figures after
+confirmation. PNG/JPEG export includes committed figures and omits handles,
+selection outlines, and previews. Figures are editable within the running app;
+exported images do not retain editable figure objects. Moving, multi-selection,
+fills, and partial figure erasure are not supported.
 
 ### Rubber
 
 Choose **Select → Rubber** (**Ctrl+Shift+R**) to erase pencil marks by clicking
 or dragging. The pointer changes to a rubber icon with a circular size outline.
 Erasing cuts pencil segments, revealing the background or imported images beneath;
-it does not paint over them. **Ctrl+Z** restores the last rubber stroke.
+it does not paint over them or alter figures. **Ctrl+Z** restores the last rubber stroke.
 
 The pencil and rubber share one size: **1 pixel by default**, adjustable from
 **1 to 50 pixels** with **Ctrl + + / -** (including the alternate size shortcuts
@@ -100,9 +132,12 @@ from saved images.
 
 - `main.py`: Tkinter application, menus, Help, drawing tools, undo, and image I/O.
 - `eraser.py`: geometry for cutting pencil segments along a rubber drag.
+- `figures.py`: immutable figure models, transforms, and border hit testing.
+- `figure_tool.py`: chooser, canvas rendering, editing gestures, and figure undo.
 - `logo.py`: Pillow renderer for the application logo.
 - `tests/test_main.py`: application, dialogs, drawing, dots, color, Help, and export tests.
 - `tests/test_eraser.py`: rubber geometry and stateful canvas behavior tests.
+- `tests/test_figures.py`: figure geometry, stateful editing, undo, themes, and export tests.
 - `media/logo.png`: logo used in this README; the app renders its icon at runtime.
 
 Run `make test`, or use PowerShell from the repository root:
@@ -114,7 +149,8 @@ Run `make test`, or use PowerShell from the repository root:
 On macOS/Linux, use `.venv/bin/python -m unittest discover -v`. Tests mock Tk
 widgets, dialogs, and file I/O where needed, so they run without opening windows
 or requiring Ghostscript. They cover size limits, tool switching, dots, custom
-color preservation, rubber cuts and undo, Help, and export cleanup. Launch the
+color preservation, rubber cuts and undo, figure transforms and cancellation,
+mixed figure/image history, Help, and export cleanup. Launch the
 app to check cursor rendering and native dialogs manually; real image export
 requires the prerequisites in [SETUP.md](doc/SETUP.md).
 
