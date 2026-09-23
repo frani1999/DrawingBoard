@@ -97,6 +97,9 @@ The suite in `tests/test_main.py` covers drawing, undo, theme switching, image
 import and resizing, canceled dialogs, and save success/failure cleanup.
 Undo All tests cover confirmation and cancellation, empty boards, active
 strokes, rubber history, image preservation, and the menu, shortcut, and Help text.
+`tests/test_figures.py` covers figure geometry, border hit testing, placement,
+rotation, resizing, canceled gestures, shared border width, theme-aware undo,
+mixed history, rubber exclusion, and export success/failure cleanup.
 It uses Python's built-in `unittest` and `unittest.mock`; no additional test
 dependencies are required. Tk widgets, dialogs, and file access are mocked,
 so tests do not open windows, write drawings, or require Ghostscript. Image
@@ -105,9 +108,23 @@ or actual PostScript conversion.
 
 For a manual check, draw marks and import an image, then open **File → Undo All**
 or press **Ctrl+Shift+Z**. Cancel should preserve the design; OK should clear
-pencil marks and rubber history while preserving imported images. Repeat with
+pencil marks, figures, and their history while preserving imported images. Repeat with
 only images on the board and verify they remain. Check that drawing still works afterward and that
 **Help → Show Help** documents the shortcut and confirmation behavior.
+
+For figures, open **Select → Figures** or **Ctrl+Shift+F** and try Rectangle,
+Ellipse, Triangle, and Edit existing figures. Place each type, select its border,
+resize using square handles, and rotate using the round blue handle. Use a
+noncircular ellipse to make rotation visible. Check repeated editing after tool
+switches, overlapping borders, Escape cancellation, and Ctrl+Z. Test border sizes
+1 and 50 and confirm resizing does not scale border width. Rubber must preserve
+figures, and Undo All must remove them only after confirmation. Switch themes
+with default and explicit colors. Scroll through Help and check Close, Escape,
+and Enter return focus to the board. Export PNG and JPEG with Ghostscript
+available: borders should be intact and selection handles absent.
+
+Figures add no new dependencies or setup steps. Exported images contain the
+rendered artwork, not editable figure objects.
 
 To run one test on Windows:
 
